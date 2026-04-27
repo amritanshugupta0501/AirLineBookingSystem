@@ -3,6 +3,10 @@ using Flight.Search.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
+using MassTransit;
+using Shared.Messages;
 
 namespace Flight.Search.API.Controllers
 {
@@ -12,10 +16,14 @@ namespace Flight.Search.API.Controllers
     public class FlightSearchController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDistributedCache _cache;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public FlightSearchController(ApplicationDbContext context)
+        public FlightSearchController(ApplicationDbContext context, IDistributedCache cache, IPublishEndpoint publishEndpoint)
         {
             _context = context;
+            _cache = cache;
+            _publishEndpoint = publishEndpoint;
         }
 
         // UC-1: One-Way Search
@@ -25,11 +33,37 @@ namespace Flight.Search.API.Controllers
             [FromQuery] string destination, 
             [FromQuery] DateTime date)
         {
+            // Publish Analytics Event
+            await _publishEndpoint.Publish<FlightSearchedEvent>(new {
+                Origin = origin,
+                Destination = destination,
+                SearchTime = DateTime.UtcNow
+            });
+
+            // Cache Key
+            var cacheKey = $"oneway:{origin}:{destination}:{date:yyyyMMdd}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                var cachedFlights = JsonSerializer.Deserialize<List<Models.Flight>>(cachedData);
+                return Ok(cachedFlights);
+            }
+
             var flights = await _context.Flights
                 .Where(f => f.Origin == origin && 
                             f.Destination == destination && 
                             f.DepartureDate.Date == date.Date)
                 .ToListAsync();
+
+            if (flights.Any())
+            {
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                };
+                await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(flights), cacheOptions);
+            }
 
             return Ok(flights);
         }
@@ -42,6 +76,14 @@ namespace Flight.Search.API.Controllers
             [FromQuery] DateTime outboundDate, 
             [FromQuery] DateTime returnDate)
         {
+            // Publish Analytics Event
+            await _publishEndpoint.Publish<FlightSearchedEvent>(new {
+                Origin = origin,
+                Destination = destination,
+                SearchTime = DateTime.UtcNow
+            });
+
+            // We could cache this just like one-way, omitting for brevity to show varied approaches
             var outboundFlights = await _context.Flights
                 .Where(f => f.Origin == origin && 
                             f.Destination == destination && 
