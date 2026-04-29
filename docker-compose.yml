@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlvolume:/var/opt/mssql
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    depends_on:
+      - auth-api
+      - flight-search-api
+      - booking-api
+      - payment-api
+      - passenger-api
+      - staff-operations-api
+      - admin-api
+      - food-order-api
+      - food-inventory-api
+
+  auth-api:
+    build:
+      context: .
+      dockerfile: Auth.API/Dockerfile
+
+  flight-search-api:
+    build:
+      context: .
+      dockerfile: Flight.Search.API/Dockerfile
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+
+  booking-api:
+    build:
+      context: .
+      dockerfile: Booking.API/Dockerfile
+    depends_on:
+      - sqlserver
+      - redis
+
+  payment-api:
+    build:
+      context: .
+      dockerfile: Payment.API/Dockerfile
+
+  passenger-api:
+    build:
+      context: .
+      dockerfile: Passenger.API/Dockerfile
+    depends_on:
+      - sqlserver
+
+  staff-operations-api:
+    build:
+      context: .
+      dockerfile: Staff.Operations.API/Dockerfile
+    depends_on:
+      - sqlserver
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: Admin.API/Dockerfile
+    depends_on:
+      - sqlserver
+
+  food-order-api:
+    build:
+      context: .
+      dockerfile: FoodOrder.API/Dockerfile
+    depends_on:
+      - sqlserver
+
+  food-inventory-api:
+    build:
+      context: .
+      dockerfile: FoodInventory.API/Dockerfile
+    depends_on:
+      - sqlserver
+
+  analytics-worker:
+    build:
+      context: .
+      dockerfile: Analytics.Worker/Dockerfile
+    depends_on:
+      - rabbitmq
+
+volumes:
+  sqlvolume:
