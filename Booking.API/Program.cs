@@ -4,6 +4,22 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var redisUrl = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrWhiteSpace(redisUrl) && redisUrl.StartsWith("redis://"))
+{
+    redisUrl = redisUrl.Substring("redis://".Length);
+    if (redisUrl.Contains("@"))
+    {
+        var parts = redisUrl.Split('@');
+        var password = parts[0].Contains(":") ? parts[0].Split(':')[1] : parts[0];
+        builder.Configuration["ConnectionStrings:Redis"] = $"{parts[1]},password={password}";
+    }
+    else
+    {
+        builder.Configuration["ConnectionStrings:Redis"] = redisUrl;
+    }
+}
+
 var connUrl = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrWhiteSpace(connUrl) && connUrl.StartsWith("postgres://"))
 {
@@ -56,6 +72,8 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
+
 
 
 
