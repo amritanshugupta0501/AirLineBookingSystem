@@ -25,11 +25,27 @@ builder.Services.AddMassTransit(x =>
 {
     x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host(builder.Configuration.GetConnectionString("RabbitMq") ?? "localhost", "/", h =>
+        var rabbitUrl = builder.Configuration.GetConnectionString("RabbitMq");
+        if (!string.IsNullOrEmpty(rabbitUrl) && (rabbitUrl.StartsWith("amqp://") || rabbitUrl.StartsWith("amqps://")))
         {
-            h.Username("guest");
-            h.Password("guest");
-        });
+            var uri = new Uri(rabbitUrl);
+            var userInfo = uri.UserInfo.Split(':');
+            cfg.Host(uri.Host, uri.LocalPath, h =>
+            {
+                h.Username(userInfo[0]);
+                h.Password(Uri.UnescapeDataString(userInfo[1]));
+                if (rabbitUrl.StartsWith("amqps://"))
+                    h.UseSsl(s => { });
+            });
+        }
+        else
+        {
+            cfg.Host(rabbitUrl ?? "localhost", "/", h =>
+            {
+                h.Username("guest");
+                h.Password("guest");
+            });
+        }
     });
 });
 
@@ -54,3 +70,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
