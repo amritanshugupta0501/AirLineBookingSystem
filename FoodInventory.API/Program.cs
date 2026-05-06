@@ -25,7 +25,7 @@ if (!string.IsNullOrWhiteSpace(dbConnectionString) && (dbConnectionString.Starts
 {
     var uri = new Uri(dbConnectionString);
     var userInfo = uri.UserInfo.Split(':');
-    dbConnectionString = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
+    dbConnectionString = $"Host={uri.Host};Port={(uri.Port == -1 ? 5432 : uri.Port)};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
 }
 builder.Services.AddDbContext<FoodInventoryDbContext>(options =>
     options.UseNpgsql(dbConnectionString ?? ""));
@@ -85,6 +85,8 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
+
 
 
 
