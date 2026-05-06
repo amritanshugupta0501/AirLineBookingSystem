@@ -25,6 +25,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add Health Checks service
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 app.UseCors("AllowFrontend");
