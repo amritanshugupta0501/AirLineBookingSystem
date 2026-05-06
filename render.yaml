@@ -93,7 +93,7 @@ services:
           name: airline-postgres
           property: connectionString
 
-  - type: worker
+  - type: web
     name: notification-worker
     env: docker
     dockerfilePath: Notification.Worker/Dockerfile
