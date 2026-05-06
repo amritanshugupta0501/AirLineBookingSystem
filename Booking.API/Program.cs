@@ -28,7 +28,7 @@ builder.Services.AddControllers();
 
 // Configure Database
 var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(dbConnectionString) && dbConnectionString.StartsWith("postgres://"))
+if (!string.IsNullOrWhiteSpace(dbConnectionString) && (dbConnectionString.StartsWith("postgres://") || dbConnectionString.StartsWith("postgresql://")))
 {
     var uri = new Uri(dbConnectionString);
     var userInfo = uri.UserInfo.Split(':');
@@ -73,6 +73,7 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
 
 
 

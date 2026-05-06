@@ -40,7 +40,7 @@ builder.Services.AddControllers();
 
 // Add DbContext
 var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(dbConnectionString) && dbConnectionString.StartsWith("postgres://"))
+if (!string.IsNullOrWhiteSpace(dbConnectionString) && (dbConnectionString.StartsWith("postgres://") || dbConnectionString.StartsWith("postgresql://")))
 {
     var uri = new Uri(dbConnectionString);
     var userInfo = uri.UserInfo.Split(':');
@@ -118,6 +118,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
 
 
 
