@@ -20,21 +20,22 @@ if (!string.IsNullOrWhiteSpace(redisUrl) && redisUrl.StartsWith("redis://"))
     }
 }
 
-var connUrl = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(connUrl) && connUrl.StartsWith("postgres://"))
-{
-    var uri = new Uri(connUrl);
-    var userInfo = uri.UserInfo.Split(':');
-    builder.Configuration["ConnectionStrings:DefaultConnection"] = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
-}
+
 builder.WebHost.UseUrls($"http://*:{port}");
 
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Configure Database
+var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(dbConnectionString) && dbConnectionString.StartsWith("postgres://"))
+{
+    var uri = new Uri(dbConnectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    dbConnectionString = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
+}
 builder.Services.AddDbContext<BookingDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=BookingDb;Username=postgres;Password=postgres"));
+    options.UseNpgsql(dbConnectionString ?? ""));
 
 // Add Redis Cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -72,6 +73,7 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
 
 
 

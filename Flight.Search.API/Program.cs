@@ -24,13 +24,7 @@ if (!string.IsNullOrWhiteSpace(redisUrl) && redisUrl.StartsWith("redis://"))
     }
 }
 
-var connUrl = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(connUrl) && connUrl.StartsWith("postgres://"))
-{
-    var uri = new Uri(connUrl);
-    var userInfo = uri.UserInfo.Split(':');
-    builder.Configuration["ConnectionStrings:DefaultConnection"] = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
-}
+
 builder.WebHost.UseUrls($"http://*:{port}");
 
 // Configure Serilog
@@ -45,8 +39,15 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers();
 
 // Add DbContext
+var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(dbConnectionString) && dbConnectionString.StartsWith("postgres://"))
+{
+    var uri = new Uri(dbConnectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    dbConnectionString = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
+}
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=FlightSearchDb;Username=postgres;Password=postgres"));
+    options.UseNpgsql(dbConnectionString ?? ""));
 
 // Add Authentication (JWT)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -117,6 +118,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
 
 
 

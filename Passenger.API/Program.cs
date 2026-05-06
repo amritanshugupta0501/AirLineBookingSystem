@@ -8,13 +8,7 @@ using PassengerModel = Passenger.API.Models.Passenger;
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-var connUrl = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(connUrl) && connUrl.StartsWith("postgres://"))
-{
-    var uri = new Uri(connUrl);
-    var userInfo = uri.UserInfo.Split(':');
-    builder.Configuration["ConnectionStrings:DefaultConnection"] = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
-}
+
 builder.WebHost.UseUrls($"http://*:{port}");
 
 // Configure Serilog
@@ -26,9 +20,15 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Database
+var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(dbConnectionString) && dbConnectionString.StartsWith("postgres://"))
+{
+    var uri = new Uri(dbConnectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    dbConnectionString = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
+}
 builder.Services.AddDbContext<PassengerDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Host=localhost;Database=PassengerDb;Username=postgres;Password=postgres"));
+    options.UseNpgsql(dbConnectionString ?? ""));
 
 // FluentValidation
 builder.Services.AddScoped<IValidator<PassengerModel>, PassengerValidator>();
@@ -65,6 +65,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
 
 
 
