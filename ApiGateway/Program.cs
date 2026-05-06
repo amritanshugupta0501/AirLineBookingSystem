@@ -2,6 +2,9 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls("http://*:$port");
+
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -39,3 +42,4 @@ app.MapHealthChecks("/health");
 app.MapReverseProxy();
 
 app.Run();
+

@@ -15,18 +15,12 @@ services:
     env: docker
     dockerfilePath: ApiGateway/Dockerfile
     plan: free
-    envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
 
   - type: web
     name: auth-api
     env: docker
     dockerfilePath: Auth.API/Dockerfile
     plan: free
-    envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
 
   - type: web
     name: flight-search-api
@@ -34,8 +28,6 @@ services:
     dockerfilePath: Flight.Search.API/Dockerfile
     plan: free
     envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: airline-postgres
@@ -52,8 +44,6 @@ services:
     dockerfilePath: Booking.API/Dockerfile
     plan: free
     envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: airline-postgres
@@ -69,9 +59,6 @@ services:
     env: docker
     dockerfilePath: Payment.API/Dockerfile
     plan: free
-    envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
 
   - type: web
     name: passenger-api
@@ -79,8 +66,6 @@ services:
     dockerfilePath: Passenger.API/Dockerfile
     plan: free
     envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: airline-postgres
@@ -92,8 +77,6 @@ services:
     dockerfilePath: Admin.API/Dockerfile
     plan: free
     envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: airline-postgres
@@ -105,8 +88,6 @@ services:
     dockerfilePath: Staff.Operations.API/Dockerfile
     plan: free
     envVars:
-      - key: ASPNETCORE_URLS
-        value: http://+:${PORT}
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: airline-postgres
