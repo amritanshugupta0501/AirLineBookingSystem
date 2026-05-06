@@ -8,7 +8,14 @@ using PassengerModel = Passenger.API.Models.Passenger;
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls("http://*:$port");
+var connUrl = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(connUrl) && connUrl.StartsWith("postgres://"))
+{
+    var uri = new Uri(connUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = $"Host={uri.Host};Port={uri.Port};Username={userInfo[0]};Password={userInfo[1]};Database={uri.LocalPath.TrimStart('/')};Pooling=true;";
+}
+builder.WebHost.UseUrls($"http://*:{port}");
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -58,5 +65,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
 
 
