@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using System;
 using Razorpay.Api.Errors;
+using MassTransit;
+using Shared.Messages;
 
 namespace Payment.API.Controllers
 {
@@ -16,12 +18,14 @@ namespace Payment.API.Controllers
         private readonly string _keyId;
         private readonly string _keySecret;
         private readonly string _webhookSecret;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public PaymentWebhookController(IConfiguration configuration)
+        public PaymentWebhookController(IConfiguration configuration, IPublishEndpoint publishEndpoint)
         {
             _keyId          = configuration["Razorpay:KeyId"]          ?? throw new InvalidOperationException("Razorpay:KeyId not configured");
             _keySecret      = configuration["Razorpay:KeySecret"]      ?? throw new InvalidOperationException("Razorpay:KeySecret not configured");
             _webhookSecret  = configuration["Razorpay:WebhookSecret"]  ?? throw new InvalidOperationException("Razorpay:WebhookSecret not configured");
+            _publishEndpoint = publishEndpoint;
         }
 
         [HttpPost("razorpay-webhook")]
@@ -58,6 +62,14 @@ namespace Payment.API.Controllers
                     {
                         metadataPnr = pnrProp.GetString() ?? "UNKNOWN_PNR";
                     }
+
+                    // Publish Event to RabbitMQ
+                    await _publishEndpoint.Publish(new BookingConfirmedEvent 
+                    { 
+                        PNR = metadataPnr, 
+                        PassengerEmail = userEmail, 
+                        AmountPaid = amountPaid 
+                    });
 
                 }
 

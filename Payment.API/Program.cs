@@ -1,4 +1,5 @@
 using Serilog;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,20 @@ builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add MassTransit/RabbitMQ
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration.GetConnectionString("RabbitMq") ?? "localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+    });
+});
+
 
 // Add Health Checks
 builder.Services.AddHealthChecks();

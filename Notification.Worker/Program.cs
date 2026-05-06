@@ -1,38 +1,45 @@
+using Serilog;
 using MassTransit;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Notification.Worker.Consumers;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((ctx, services) =>
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/notification-worker-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+try
+{
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.Services.AddSerilog();
+
+    builder.Services.AddMassTransit(x =>
     {
-        services.AddMassTransit(x =>
+        x.AddConsumer<BookingConfirmedEventConsumer>();
+
+        x.UsingRabbitMq((context, cfg) =>
         {
-            // Register both consumers
-            x.AddConsumer<EmailConsumer>();
-            x.AddConsumer<SmsConsumer>();
-
-            x.UsingRabbitMq((context, cfg) =>
+            cfg.Host(builder.Configuration.GetConnectionString("RabbitMq") ?? "localhost", "/", h =>
             {
-                cfg.Host(ctx.Configuration.GetConnectionString("RabbitMq") ?? "localhost", "/", h =>
-                {
-                    h.Username("guest");
-                    h.Password("guest");
-                });
+                h.Username("guest");
+                h.Password("guest");
+            });
 
-                // Each consumer gets its own durable queue
-                cfg.ReceiveEndpoint("booking-confirmed-email", e =>
-                {
-                    e.ConfigureConsumer<EmailConsumer>(context);
-                });
-
-                cfg.ReceiveEndpoint("booking-confirmed-sms", e =>
-                {
-                    e.ConfigureConsumer<SmsConsumer>(context);
-                });
+            cfg.ReceiveEndpoint("notification-queue", e =>
+            {
+                e.ConfigureConsumer<BookingConfirmedEventConsumer>(context);
             });
         });
-    })
-    .Build();
+    });
 
-await host.RunAsync();
+    var host = builder.Build();
+    host.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

@@ -1,0 +1,12 @@
+**/.git
+**/.scannerwork
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/logs/
+**/*.user
+**/*.suo
+airline-frontend/dist/
+airline-frontend/.angular/

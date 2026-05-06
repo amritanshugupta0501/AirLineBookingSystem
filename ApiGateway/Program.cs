@@ -14,7 +14,20 @@ builder.Host.UseSerilog();
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+// Add CORS to allow the Angular frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
+
+app.UseCors("AllowFrontend");
 
 app.UseSerilogRequestLogging();
 app.MapHealthChecks("/health");

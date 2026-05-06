@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using MassTransit;
-using Shared.Messages;
 
 namespace Flight.Search.API.Controllers
 {
@@ -17,13 +15,11 @@ namespace Flight.Search.API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IDistributedCache _cache;
-        private readonly IPublishEndpoint _publishEndpoint;
 
-        public FlightSearchController(ApplicationDbContext context, IDistributedCache cache, IPublishEndpoint publishEndpoint)
+        public FlightSearchController(ApplicationDbContext context, IDistributedCache cache)
         {
             _context = context;
             _cache = cache;
-            _publishEndpoint = publishEndpoint;
         }
 
         // UC-1: One-Way Search
@@ -33,12 +29,6 @@ namespace Flight.Search.API.Controllers
             [FromQuery] string destination, 
             [FromQuery] DateTime date)
         {
-            // Publish Analytics Event
-            await _publishEndpoint.Publish<FlightSearchedEvent>(new {
-                Origin = origin,
-                Destination = destination,
-                SearchTime = DateTime.UtcNow
-            });
 
             // Cache Key
             var cacheKey = $"oneway:{origin}:{destination}:{date:yyyyMMdd}";
@@ -76,12 +66,6 @@ namespace Flight.Search.API.Controllers
             [FromQuery] DateTime outboundDate, 
             [FromQuery] DateTime returnDate)
         {
-            // Publish Analytics Event
-            await _publishEndpoint.Publish<FlightSearchedEvent>(new {
-                Origin = origin,
-                Destination = destination,
-                SearchTime = DateTime.UtcNow
-            });
 
             // We could cache this just like one-way, omitting for brevity to show varied approaches
             var outboundFlights = await _context.Flights
