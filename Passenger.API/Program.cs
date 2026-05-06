@@ -17,8 +17,8 @@ builder.Host.UseSerilog();
 
 // Database
 builder.Services.AddDbContext<PassengerDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Server=(localdb)\\mssqllocaldb;Database=PassengerDb;Trusted_Connection=True;"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? "Host=localhost;Database=PassengerDb;Username=postgres;Password=postgres"));
 
 // FluentValidation
 builder.Services.AddScoped<IValidator<PassengerModel>, PassengerValidator>();
@@ -55,3 +55,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+

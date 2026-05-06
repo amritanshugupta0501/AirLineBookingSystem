@@ -17,8 +17,8 @@ builder.Host.UseSerilog();
 
 // Database
 builder.Services.AddDbContext<FoodOrderDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") 
-        ?? "Server=(localdb)\\mssqllocaldb;Database=FoodOrderDb;Trusted_Connection=True;"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") 
+        ?? "Host=localhost;Database=FoodOrderDb;Username=postgres;Password=postgres"));
 
 // Add Authentication (JWT)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -75,3 +75,4 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+

@@ -8,7 +8,7 @@ builder.Services.AddControllers();
 
 // Configure Database
 builder.Services.AddDbContext<BookingDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=(localdb)\\mssqllocaldb;Database=BookingDb;Trusted_Connection=True;"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=BookingDb;Username=postgres;Password=postgres"));
 
 // Add Redis Cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -46,3 +46,4 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+

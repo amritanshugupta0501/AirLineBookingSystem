@@ -20,7 +20,7 @@ builder.Services.AddControllers();
 
 // Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=(localdb)\\mssqllocaldb;Database=FlightSearchDb;Trusted_Connection=True;"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Host=localhost;Database=FlightSearchDb;Username=postgres;Password=postgres"));
 
 // Add Authentication (JWT)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -91,3 +91,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
