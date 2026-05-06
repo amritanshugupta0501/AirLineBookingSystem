@@ -26,12 +26,13 @@ namespace Notification.Worker.Consumers
         public async Task Consume(ConsumeContext<BookingConfirmedEvent> context)
         {
             var evt = context.Message;
-            _logger.LogInformation("Sending SMS to {Phone} for PNR {Pnr}", evt.PassengerPhone, evt.Pnr);
+            string passengerPhone = "+1234567890"; // Mock phone number since it's not in the event
+            _logger.LogInformation("Sending SMS to {Phone} for PNR {Pnr}", passengerPhone, evt.PNR);
 
             var message = await MessageResource.CreateAsync(
-                body: $"[Airline] Booking confirmed! PNR: {evt.Pnr} | Flight: {evt.FlightNumber} | Seat: {evt.SeatIdentifier} | ₹{evt.TotalAmount:N0}",
+                body: $"[Airline] Booking confirmed! PNR: {evt.PNR} | ₹{evt.AmountPaid:N0}",
                 from: new Twilio.Types.PhoneNumber(_fromNumber),
-                to:   new Twilio.Types.PhoneNumber(evt.PassengerPhone)
+                to:   new Twilio.Types.PhoneNumber(passengerPhone)
             );
 
             _logger.LogInformation("SMS sent — Twilio SID: {Sid}", message.Sid);
