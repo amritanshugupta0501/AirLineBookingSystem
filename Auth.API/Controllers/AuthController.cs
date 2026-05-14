@@ -14,6 +14,8 @@ namespace Auth.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _configuration;
+        // In-memory user store (replace with real DB in production)
+        private static readonly List<RegisteredUser> _users = new();
 
         public AuthController(IConfiguration configuration)
         {
@@ -23,50 +25,135 @@ namespace Auth.API.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginModel model)
         {
-            // Role-based credentials (extend with real DB lookup in production)
+            // Check hardcoded role-based credentials first
             if (model.Username == "admin" && model.Password == "password")
-                return Ok(new { token = GenerateJwtToken(model.Username, "Admin") });
+                return Ok(new { token = GenerateJwtToken(model.Username, "Admin"), role = "Admin" });
 
             if (model.Username == "staff" && model.Password == "password")
-                return Ok(new { token = GenerateJwtToken(model.Username, "AirlineStaff") });
+                return Ok(new { token = GenerateJwtToken(model.Username, "AirlineStaff"), role = "AirlineStaff" });
 
             if (model.Username == "user" && model.Password == "password")
-                return Ok(new { token = GenerateJwtToken(model.Username, "User") });
+                return Ok(new { token = GenerateJwtToken(model.Username, "User"), role = "User" });
 
-            return Unauthorized();
+            // Check registered users
+            var registeredUser = _users.FirstOrDefault(u =>
+                u.Username.Equals(model.Username, StringComparison.OrdinalIgnoreCase) &&
+                u.Password == model.Password);
+
+            if (registeredUser != null)
+                return Ok(new { token = GenerateJwtToken(registeredUser.Username, registeredUser.Role), role = registeredUser.Role });
+
+            return Unauthorized(new { message = "Invalid username or password" });
+        }
+
+        [HttpPost("register")]
+        public IActionResult Register([FromBody] RegisterModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.Password))
+                return BadRequest(new { message = "Username and password are required" });
+
+            // Check duplicates (hardcoded + registered)
+            var existsHardcoded = model.Username.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
+                                  model.Username.Equals("staff", StringComparison.OrdinalIgnoreCase) ||
+                                  model.Username.Equals("user", StringComparison.OrdinalIgnoreCase);
+
+            var existsRegistered = _users.Any(u => u.Username.Equals(model.Username, StringComparison.OrdinalIgnoreCase));
+
+            if (existsHardcoded || existsRegistered)
+                return Conflict(new { message = "Username already exists" });
+
+            var newUser = new RegisteredUser
+            {
+                Username = model.Username,
+                Password = model.Password, // hash in production!
+                Email = model.Email ?? string.Empty,
+                Role = "User"
+            };
+
+            _users.Add(newUser);
+
+            var token = GenerateJwtToken(newUser.Username, newUser.Role);
+            return Ok(new { token, role = newUser.Role, message = "Registration successful" });
+        }
+
+        [HttpPost("staff/login")]
+        public IActionResult StaffLogin([FromBody] LoginModel model)
+        {
+            // Check hardcoded staff accounts
+            if (model.Username == "staff" && model.Password == "password")
+                return Ok(new { token = GenerateJwtToken(model.Username, "AirlineStaff"), role = "AirlineStaff" });
+
+            if (model.Username == "admin" && model.Password == "password")
+                return Ok(new { token = GenerateJwtToken(model.Username, "Admin"), role = "Admin" });
+
+            // Check registered staff accounts
+            var registeredStaff = _users.FirstOrDefault(u =>
+                u.Username.Equals(model.Username, StringComparison.OrdinalIgnoreCase) &&
+                u.Password == model.Password &&
+                (u.Role == "AirlineStaff" || u.Role == "Admin"));
+
+            if (registeredStaff != null)
+                return Ok(new { token = GenerateJwtToken(registeredStaff.Username, registeredStaff.Role), role = registeredStaff.Role });
+
+            return Unauthorized(new { message = "Invalid staff credentials" });
+        }
+
+        [HttpPost("staff/register")]
+        public IActionResult StaffRegister([FromBody] StaffRegisterModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.Password))
+                return BadRequest(new { message = "Username and password are required" });
+
+            var existsHardcoded = model.Username.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
+                                  model.Username.Equals("staff", StringComparison.OrdinalIgnoreCase) ||
+                                  model.Username.Equals("user", StringComparison.OrdinalIgnoreCase);
+
+            var existsRegistered = _users.Any(u => u.Username.Equals(model.Username, StringComparison.OrdinalIgnoreCase));
+
+            if (existsHardcoded || existsRegistered)
+                return Conflict(new { message = "Username already taken" });
+
+            var newStaff = new RegisteredUser
+            {
+                Username = model.Username,
+                Password = model.Password,
+                Email = model.Email ?? string.Empty,
+                Role = "AirlineStaff"
+            };
+
+            _users.Add(newStaff);
+
+            var token = GenerateJwtToken(newStaff.Username, newStaff.Role);
+            return Ok(new { token, role = newStaff.Role, message = "Staff account created successfully" });
         }
 
         [HttpGet("login-google")]
-        public IActionResult LoginWithGoogle(string returnUrl = "/")
+        public IActionResult LoginWithGoogle([FromQuery] string returnUrl = "http://localhost:4200")
         {
             var properties = new AuthenticationProperties { RedirectUri = Url.Action("GoogleResponse", new { returnUrl }) };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
 
         [HttpGet("google-response")]
-        public async Task<IActionResult> GoogleResponse(string returnUrl = "/")
+        public async Task<IActionResult> GoogleResponse([FromQuery] string returnUrl = "http://localhost:4200")
         {
             var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
             if (result?.Principal != null)
             {
-                // Successful Google Login. We extract user details
                 var claims = result.Principal.Identities.FirstOrDefault()?.Claims;
-                var email = claims?.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value 
+                var email = claims?.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
                             ?? result.Principal.Identity?.Name ?? "Google User";
 
-                // Generate system JWT using their Google Email
                 var token = GenerateJwtToken(email, "User");
 
-                // Optionally sign them out of the staging cookie
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-                // In a real application, you'd seamlessly redirect back to the frontend with the token, e.g.:
-                // return Redirect($"{returnUrl}?token={token}");
-                return Ok(new { Message = "Successfully authenticated via Google", Token = token, Email = email });
+                // Redirect back to Angular frontend with token in URL
+                return Redirect($"{returnUrl}/auth/callback?token={Uri.EscapeDataString(token)}&role=User&email={Uri.EscapeDataString(email)}");
             }
 
-            return Unauthorized("Google Authentication failed.");
+            return Redirect($"{returnUrl}/login?error=google_failed");
         }
 
         private string GenerateJwtToken(string username, string role)
@@ -97,5 +184,28 @@ namespace Auth.API.Controllers
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+    }
+
+    public class RegisterModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string? Email { get; set; }
+    }
+
+    public class RegisteredUser
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = "User";
+    }
+
+    public class StaffRegisterModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string StaffCode { get; set; } = string.Empty;
     }
 }

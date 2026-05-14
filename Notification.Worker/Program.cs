@@ -9,9 +9,13 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    var builder = Host.CreateApplicationBuilder(args);
+    // Use WebApplication so we can bind to PORT and satisfy Render's health check
+    var builder = WebApplication.CreateBuilder(args);
 
-    builder.Services.AddSerilog();
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    builder.WebHost.UseUrls($"http://*:{port}");
+
+    builder.Host.UseSerilog();
 
     builder.Services.AddMassTransit(x =>
     {
@@ -24,17 +28,19 @@ try
             {
                 var uri = new Uri(rabbitUrl);
                 var userInfo = uri.UserInfo.Split(':');
-                cfg.Host(uri.Host, uri.LocalPath, h =>
+
+                // Pass the full URI so MassTransit picks up host, port AND virtual host correctly
+                cfg.Host(uri, h =>
                 {
-                    h.Username(userInfo[0]);
-                    h.Password(Uri.UnescapeDataString(userInfo[1]));
+                    if (userInfo.Length >= 1) h.Username(userInfo[0]);
+                    if (userInfo.Length >= 2) h.Password(Uri.UnescapeDataString(userInfo[1]));
                     if (rabbitUrl.StartsWith("amqps://"))
                         h.UseSsl(s => { });
                 });
             }
             else
             {
-                cfg.Host(rabbitUrl ?? "localhost", "/", h =>
+                cfg.Host("localhost", "/", h =>
                 {
                     h.Username("guest");
                     h.Password("guest");
@@ -48,8 +54,12 @@ try
         });
     });
 
-    var host = builder.Build();
-    host.Run();
+    var app = builder.Build();
+
+    // Minimal health endpoint so Render's port scan succeeds
+    app.MapGet("/health", () => Results.Ok("Notification Worker running"));
+
+    app.Run();
 }
 catch (Exception ex)
 {

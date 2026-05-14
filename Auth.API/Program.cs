@@ -18,6 +18,18 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Add CORS to allow calls from Angular frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200", "http://localhost:5000", "https://localhost:5001")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Configure Authentication: Cookies (for Google OAuth Challenge) + Google
 builder.Services.AddAuthentication(options =>
 {
@@ -55,6 +67,7 @@ app.UseHttpsRedirection();
 // Use Serilog request logging
 app.UseSerilogRequestLogging();
 
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
